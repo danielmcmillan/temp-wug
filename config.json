@@ -1,0 +1,7 @@
+{
+    "device_path":"/sys/bus/w1/devices/$/w1_slave",
+    "sensors":{
+        "inside":{"name":"Inside", "device":"28-03158270e8ff"},
+        "outside":{"name":"Outside", "device":"28-020000000000"}
+    }
+}
