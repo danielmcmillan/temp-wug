@@ -28,6 +28,19 @@ class RrdConnection:
                 self.socket.send((command + "\n").encode("utf-8"))
             except socket.error as ex:
                 print("Failed to send message to rrdtool.")
+    
+    def update(self, temps):
+        #Create the rrdtool command to update the database with the temperatures
+        cmd_string = "update {0} -t ".format(self.db_name)
+        values = ""
+        for sensor in temps:
+            cmd_string += sensor + ":"
+            values += ":" + temps[sensor]
+        cmd_string = cmd_string[:-1]
+        cmd_string += " N" + values
+        
+        print("Updating rrd file with {0}".format(cmd_string))
+        self.send_command(cmd_string)
         
     def create(self):
         #Create the rrdtool command to create the database file
