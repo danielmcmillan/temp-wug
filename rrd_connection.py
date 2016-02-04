@@ -35,7 +35,14 @@ class RrdConnection:
         values = ""
         for sensor in temps:
             cmd_string += sensor + ":"
-            values += ":" + temps[sensor]
+            
+            temp = temps[sensor]
+            if temp == temp:
+                values += ":" + str(temps[sensor])
+            else:
+                #Temp is NaN
+                values += ":" + "U"
+            
         cmd_string = cmd_string[:-1]
         cmd_string += " N" + values
         
