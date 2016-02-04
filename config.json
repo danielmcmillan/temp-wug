@@ -1,7 +1,11 @@
 {
     "device_path":"/sys/bus/w1/devices/$/w1_slave",
     "sensors":{
-        "inside":{"name":"Inside", "device":"28-03158270e8ff"},
-        "outside":{"name":"Outside", "device":"28-020000000000"}
-    }
+        "inside":{"name":"Inside", "device":"28-03158270e8ff"}
+    },
+    
+    "rrd_address":"localhost",
+    "rrd_port":"13900",
+    "database_name":"temps_pi1.rrd",
+    "update_delay":"10"
 }
