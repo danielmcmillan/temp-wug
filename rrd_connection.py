@@ -5,8 +5,8 @@ import time
 from logger import Logger
 
 class RrdConnection:
-    retry_delay = 5
-    retry_count = 5
+    retry_delay = 30
+    retry_count = 10
     value_error_log_delay = 300
 
     def __init__(self, address, port, db_name, sensors, update_delay, logger):
@@ -80,7 +80,7 @@ class RrdConnection:
         cmd_string = "create {0} --step {1} ".format(self.db_name, self.update_delay)
         for sensor_id in self.sensors:
             cmd_string += "DS:{0}:GAUGE:20:-55:125 ".format(sensor_id)
-        cmd_string += "RRA:AVERAGE:0.5:6:1440 RRA:MAX:0.5:360:438000 RRA:MIN:0.5:360:438000 RRA:AVERAGE:0.5:360:438000"
+        cmd_string += "RRA:AVERAGE:0.5:6:10080 RRA:MAX:0.5:360:438000 RRA:MIN:0.5:360:438000 RRA:AVERAGE:0.5:360:438000"
         
         print("Creating rrd file with {0}".format(cmd_string))
         self.send_command(cmd_string)
