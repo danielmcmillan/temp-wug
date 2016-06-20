@@ -1,0 +1,31 @@
+// This is the sample configuration for the temperature reader
+// Configuration for the rrdtool server and its sensors is also required (see rrd_config_default.json)
+{
+    // The one wire device file to read data from, with $ used as placeholder for the device name
+    "device_path": "/sys/bus/w1/devices/$/w1_slave",
+
+    // The sensors to provide data for and their corresponding device id
+    // The sensor string must be the id of a sensor defined in rrd_config, and all sensors
+    // must be in the same rrd file
+    "sensors":
+    {
+        "sensor-id": "device-id"
+    },
+
+    // The time in seconds between each read of the sensors and write to the rrd
+    // Ideally this would match the step for the rrd database
+    "update_delay": "10",
+
+    // The maximum allowable absolute change in temperature reading per second.
+    // Readings exceeding this range will be ignored
+    // Set to 0 or less to disable the limit
+    "max_change": 0.2, // 12 per minute
+
+    // Whether to ignore the first reading from a sensor after starting or an error
+    // This can prevent erroneous readings when the sensor has just powered up
+    "skip_initial_reading": true,
+
+    // An email address to send certain log messages to
+    // The UNIX mailx command is used, which must be installed and configured
+    "log_email": null
+}
