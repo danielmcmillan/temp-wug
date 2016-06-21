@@ -14,15 +14,19 @@ class Logger:
         """
         timestamp = Logger.get_timestamp()
 
-        print("{0}: {1} - {2}".format(timestamp, message, detail))
+        if (detail):
+            print("{0}: {1} - {2}".format(timestamp, message, detail))
+        else:
+            print("{0}: {1}".format(timestamp, message))
         
         if send_email and self.email_address is not None:
             subject = "TempReader: " + message
-            text = """Time: {0}
-                Origin: {3}
-                {1}
-                {2}
-                """.format(timestamp, message, detail, socket.gethostname())
+            if detail:
+                text = "Time: {0}\nOrigin: {3}\n{1}\n{2}".format(
+                    timestamp, message, detail, socket.gethostname())
+            else:
+                text = "Time: {0}\nOrigin: {2}\n{1}".format(
+                    timestamp, message, socket.gethostname())
             self.email(subject, text)
     
     @staticmethod

@@ -9,9 +9,10 @@ class RrdConnection:
     """ Class for connecting and sending commands to rrdtool to create a database
         of temperatures and update it with current values"""
 
-    def __init__(self, rrd_config):
+    def __init__(self, rrd_config, rrd_file):
         """Create a new instance ready to connect with the specified config"""
         self.rrd_config = rrd_config
+        self.rrd_file = rrd_file
         self.socket = None
         
     def connect(self, retry_attempts = 0, retry_delay = DEFAULT_RETRY_DELAY):
@@ -28,7 +29,7 @@ class RrdConnection:
         
         while True:
             try:
-                self.socket.connect((self.rrd_config["rrd_address"], self.rrd_config["rrd_port"]))
+                self.socket.connect((self.rrd_config["rrd_address"], int(self.rrd_config["rrd_port"])))
                 break
             except socket.error:
                 # Try again until set number of retries
@@ -54,49 +55,38 @@ class RrdConnection:
             self.socket = None
             raise
     
-    def update(self, temps):
-        """ Send a command to rrdtool to update with the given temperatures.
+    def update_command(self, temps):
+        """ Gets the command to send to rrdtool to update with the given temperatures.
             temps: dictionary of temperatures indexed by the sensor id
         """
-        #TODO
-        sensors_with_error = []
-        #Create the rrdtool command to update the database with the temperatures
-        cmd_string = "update {0} -t ".format(self.db_name)
+        cmd_string = "update {0} -t ".format(self.rrd_file)
         values = ""
-        for sensor in temps:
-            cmd_string += sensor + ":"
+        for sensor_id in temps:
+            cmd_string += sensor_id + ":"
             
-            temp = temps[sensor]
+            temp = temps[sensor_id]
             if temp == temp:
-                values += ":" + str(temps[sensor])
+                values += ":" + str(temp)
             else:
-                #Temp is NaN
-                sensors_with_error.append(sensor)
+                # Temp is NaN, set to unknown
                 values += ":" + "U"
-            
+        
+        # Remove the extra colon
         cmd_string = cmd_string[:-1]
+        # Add the values
         cmd_string += " N" + values
         
-        if len(sensors_with_error) > 0 :
-            now = time.time()
-            if now >= self.last_value_warning + RrdConnection.value_error_log_delay:
-                self.last_value_warning = now
-                warning = "There was a problem reading the value from the following sensors:\n"
-                for sensor in sensors_with_error:
-                    warning += sensor + "\n" 
-                self.log.log("WARNING", warning, True)
-            
-        self.send_command(cmd_string)
+        return cmd_string
         
-    def create_command(self, rrd_file):
-        """ Gets the command to send to rrdtool to create the specified database file
-            based on the current configuration.
+    def create_command(self):
+        """ Gets the command to send to rrdtool to create the database file based on
+            the current configuration.
         """
-        cmd_string = "create {0} --step {1} ".format(rrd_file, self.rrd_config["rrd_step"])
+        cmd_string = "create {0} --step {1} ".format(self.rrd_file, self.rrd_config["rrd_step"])
         # Add each data source
         for sensor_id in self.rrd_config["sensors"]:
             # Check whether this sensor is part of the file being created
-            if (self.rrd_config["sensors"]["sensor_id"]["rrd_file"] != rrd_file):
+            if (self.rrd_config["sensors"][sensor_id]["rrd_file"] != self.rrd_file):
                 continue
             cmd_string += "DS:{0}:GAUGE:{1}:{2}:{3} ".format(sensor_id,
                 2 * self.rrd_config["rrd_step"], self.rrd_config["min_temp"],
@@ -110,7 +100,11 @@ class RrdConnection:
         return cmd_string
     
     def __exit__(self, exc_type, exc_value, traceback):
-        self.socket.close()
+        self.close()
         
     def __del__(self):
-        self.socket.close()
+        self.close()
+    
+    def close(self):
+        if (self.socket is not None):
+            self.socket.close()

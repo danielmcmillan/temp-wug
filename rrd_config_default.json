@@ -7,8 +7,7 @@
     // The temperature sensors known by rrdtool
     "sensors":
     {
-        "sensor-id":
-            { "name": "sensor-name", "rrd_file": "/var/rrd/temps.rrd", "colour": "#ffffff" }
+        "sensor-id": { "name": "sensor-name", "rrd_file": "temps.rrd", "colour": "#ffffff" }
     },
 
     // The time in seconds for rrdtool to expect between temperature readings

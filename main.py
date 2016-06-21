@@ -52,30 +52,12 @@ def main():
             "device": config["device_path"].replace("$", config["sensors"][sensor_id])
         }
 
-    rrd = RrdConnection(rrd_config)
+    rrd = RrdConnection(rrd_config, rrd_file)
 
     if (args.newrrd):
-        # Create database
-        create_database(rrd, rrd_file)
+        create_database(rrd)
     elif (args.database):
-        # Start updating database
-        log = Logger(config["email"])
-        while True:
-            # Connect to rrdtool
-            try:
-                rrd.connect(retry_attempts = config["connection_attempts"],
-                    retry_delay = config["retry_delay"])
-            except socket.error:
-                log.log("rrdtool connection failure", send_email = True)
-                break
-
-            log.log("rrdtool connection success", send_email = True)
-
-            try:
-                provide_temps(rrd, log, config, sensors)
-            except socket.error:
-                if (not config["retry_after_drop"]):
-                    break
+        update_database(rrd, config, sensors)
     else:
         # Print current temperatures
         reader = SensorReader(sensors)
@@ -100,14 +82,14 @@ def parse_arguments():
         "Connect to rrdtool and create the database, clearing existing data", action="store_true")
     return parser.parse_args()
 
-def create_database(rrd, rrd_file):
+def create_database(rrd):
     """ Tell rrdtool to create the specified rrd file"""
     # Get the database creation string
-    cmd_string = rrd.create_command(rrd_file)
+    cmd_string = rrd.create_command()
     print("Sending command '{0}'".format(cmd_string))
     # Confirm database creation with user
-    ans = input("""Are you sure you wish to continue?
-        Any existing data will be permanently replaced. (y/n) """)
+    ans = input("Are you sure you wish to continue?\n" +
+        "Any existing data will be permanently replaced. (y/n) ")
     if ans.lower() != "y":
         print("Aborting")
         return
@@ -116,8 +98,33 @@ def create_database(rrd, rrd_file):
     try:
         rrd.connect()
         rrd.send_command(cmd_string)
+        print("Command sent successfully")
     except socket.error:
         print("Failed to send command")
+
+def update_database(rrd, config, sensors):
+    """ Connect to rrdtool and start providing temps.
+        If config retry_after_drop is specified, connection will be reestablished after error.
+    """
+    log = Logger(config["log_email"])
+    # Loop so that on failure we can reconnect
+    while True:
+        # Connect to rrdtool
+        try:
+            rrd.connect(retry_attempts = config["connection_attempts"],
+                retry_delay = config["retry_delay"])
+            log.log("rrdtool connection success", send_email = True)
+        except socket.error:
+            log.log("rrdtool connection failure", send_email = True)
+            break
+
+        try:
+            provide_temps(rrd, log, config, sensors)
+        except socket.error:
+            if (not config["retry_after_drop"]):
+                log.log("rrdtool connection lost",
+                    "An error occured while communicating with rrdtool, aborting", send_email = True)
+                break
 
 def provide_temps(rrd, log, config, sensors):
     """ Read temperatures and provide them to the given rrdtool connection.
