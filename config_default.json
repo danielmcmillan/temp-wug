@@ -27,5 +27,14 @@
 
     // An email address to send certain log messages to
     // The UNIX mailx command is used, which must be installed and configured
-    "log_email": null
+    "log_email": null,
+
+    // The number of rrdtool connection attempts
+    "connection_attempts": 10,
+
+    // The delay in seconds between connection attempts
+    "connection_delay": 30,
+
+    // Whether to retry connection after a connection error
+    "retry_after_drop": true
 }

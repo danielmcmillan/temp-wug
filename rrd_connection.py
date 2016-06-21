@@ -1,51 +1,64 @@
-#!/usr/bin/python3
-
 import socket
 import time
 from logger import Logger
 
-class RrdConnection:
-    retry_delay = 30
-    retry_count = 10
-    value_error_log_delay = 300
+# The default number of seconds between connection attempts
+DEFAULT_RETRY_DELAY = 30
 
-    def __init__(self, address, port, db_name, sensors, update_delay, logger):
-        self.db_name = db_name
-        self.sensors = sensors
-        self.update_delay = update_delay
-        self.log = logger
-        self.last_value_warning = 0
+class RrdConnection:
+    """ Class for connecting and sending commands to rrdtool to create a database
+        of temperatures and update it with current values"""
+
+    def __init__(self, rrd_config):
+        """Create a new instance ready to connect with the specified config"""
+        self.rrd_config = rrd_config
+        self.socket = None
         
-        #Create a socket and connect to the rrdtool server
-        self.log.log("INFORMATION", "Starting RRDTOOL connection.", False)
+    def connect(self, retry_attempts = 0, retry_delay = DEFAULT_RETRY_DELAY):
+        """ Attempt to connect to rrdtool. On failure, socket.error is raised.
+            retry_attempts: specify to enable automatic retry on failure
+            retry_delay: set the delay in seconds between connection attempts
+        """
+        if (self.socket is not None):
+            # Already connected
+            return
+        
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         retries = 0
+        
         while True:
             try:
-                self.socket.connect((address, int(port)))
-                self.log.log("INFORMATION", "Successfully connected to RRDTOOL.", False)
+                self.socket.connect((self.rrd_config["rrd_address"], self.rrd_config["rrd_port"]))
                 break
-            except socket.error as ex:
-                self.log.log("ERROR", "Failed to connect to {0}:{1}.".format(address, port), False)
-                #Try again until set number of retries
-                if retries >= RrdConnection.retry_count:
-                    self.log.log("ERROR", "RRDTOOL not available, aborting.", True)
-                    quit()
+            except socket.error:
+                # Try again until set number of retries
+                if retries >= retry_attempts:
+                    raise
                 else:
                     retries += 1
-                    time.sleep(RrdConnection.retry_delay)
+                    time.sleep(retry_delay)
     
     def __enter__(self):
         return self
     
     def send_command(self, command):
+        """ Send the specified command string to rrdtool.
+            If there is no connection or a socket error occurs, socket.error is raised
+        """
+        if (self.socket is None):
+            raise socket.error("socket not created")
         try:
-            self.socket.send((command + "\n").encode("utf-8"))
-        except socket.error as ex:
-            self.log.log("ERROR", "Failed to communicate with RRDTOOL, aborting.", True)
-            quit()
+            self.socket.sendall((command + "\n").encode("utf-8"))
+        except socket.error:
+            self.socket.close()
+            self.socket = None
+            raise
     
     def update(self, temps):
+        """ Send a command to rrdtool to update with the given temperatures.
+            temps: dictionary of temperatures indexed by the sensor id
+        """
+        #TODO
         sensors_with_error = []
         #Create the rrdtool command to update the database with the temperatures
         cmd_string = "update {0} -t ".format(self.db_name)
@@ -75,15 +88,26 @@ class RrdConnection:
             
         self.send_command(cmd_string)
         
-    def create(self):
-        #Create the rrdtool command to create the database file
-        cmd_string = "create {0} --step {1} ".format(self.db_name, self.update_delay)
-        for sensor_id in self.sensors:
-            cmd_string += "DS:{0}:GAUGE:20:-55:125 ".format(sensor_id)
-        cmd_string += "RRA:AVERAGE:0.5:6:10080 RRA:MAX:0.5:360:438000 RRA:MIN:0.5:360:438000 RRA:AVERAGE:0.5:360:438000"
+    def create_command(self, rrd_file):
+        """ Gets the command to send to rrdtool to create the specified database file
+            based on the current configuration.
+        """
+        cmd_string = "create {0} --step {1} ".format(rrd_file, self.rrd_config["rrd_step"])
+        # Add each data source
+        for sensor_id in self.rrd_config["sensors"]:
+            # Check whether this sensor is part of the file being created
+            if (self.rrd_config["sensors"]["sensor_id"]["rrd_file"] != rrd_file):
+                continue
+            cmd_string += "DS:{0}:GAUGE:{1}:{2}:{3} ".format(sensor_id,
+                2 * self.rrd_config["rrd_step"], self.rrd_config["min_temp"],
+                self.rrd_config["max_temp"])
+                
+        # Add the archives
+        for archive in self.rrd_config["archives"]:
+            cmd_string += "RRA:{0}:{1}:{2}:{3} ".format(archive["cf"], archive["xff"],
+                archive["steps"], archive["rows"])
         
-        print("Creating rrd file with {0}".format(cmd_string))
-        self.send_command(cmd_string)
+        return cmd_string
     
     def __exit__(self, exc_type, exc_value, traceback):
         self.socket.close()
