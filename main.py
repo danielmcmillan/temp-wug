@@ -113,7 +113,8 @@ def update_database(rrd, config, sensors):
         try:
             rrd.connect(retry_attempts = config["connection_attempts"],
                 retry_delay = config["retry_delay"])
-            log.log("rrdtool connection success", send_email = True)
+            log.log("rrdtool connection success", "providing file {0} with temperatures from {1}".format(rrd.rrd_file, ", ".join(sensors)),
+                send_email = True)
         except socket.error:
             log.log("rrdtool connection failure", send_email = True)
             break
@@ -134,21 +135,40 @@ def provide_temps(rrd, log, config, sensors):
     reader = SensorReader(sensors)
     # The time when the next update should occur (now)
     nextupdate = time.time()
+    # The time when the sensors were read last
+    lastread = 0
+    # The previously read values
+    old_temps = {}
+    for sensor_id in config["sensors"]:
+        old_temps[sensor_id] = float("NaN")
     
     while True:
         # Read temperatures from sensors
-        temps = reader.read_all_temps()
+        new_temps = reader.read_all_temps()
         # Log read failures
-        check_readings(temps, log)
+        check_readings(new_temps, log)
+
+        if (config["max_change"] > 0):
+            if (lastread > 0):
+                # Calculate maximum change from the time since the last reading
+                max_change = config["max_change"] * (time.time() - lastread)
+            # Set temps that changed too much to NaN
+            for sensor_id in old_temps:
+                old_temp = old_temps[sensor_id]
+                new_temp = new_temps[sensor_id]
+                if (old_temp != old_temp or abs(new_temp - old_temp) > max_change):
+                    new_temps[sensor_id] = float("NaN")
+                old_temps[sensor_id] = new_temp
+            lastread = time.time()
         # Send the values to rrdtool
-        cmd_string = rrd.update_command(temps)
+        cmd_string = rrd.update_command(new_temps)
         rrd.send_command(cmd_string) # May raise socket.error
         # Set the next update time
         nextupdate += delay
         # Sleep until another update is required
         sleeptime = nextupdate - time.time()
-        # Reset time and don't sleep if dropping behind
         if (sleeptime < 0):
+            # Dropping behind, reset time and don't sleep
             log.log("temp updates behind", "", send_email = True)
             nextupdate = time.time()
         else:
@@ -156,15 +176,13 @@ def provide_temps(rrd, log, config, sensors):
 
 def check_readings(temps, log):
     """ Checks for failed temperature readings and logs them"""
-    if (time.time() < check_readings.last_log + READ_ERROR_LOG_DELAY):
-        # Already logged errors recently
-        return
     error_sensors = []
     for sensor_id in temps:
         temp = temps[sensor_id]
         if (temp != temp):
             error_sensors.append(sensor_id)
-    if (len(error_sensors) > 0):
+    # If there are errors and its been READ_ERROR_LOG_DELAY seconds since last log
+    if (len(error_sensors) > 0 and time.time() >= check_readings.last_log + READ_ERROR_LOG_DELAY):
         check_readings.last_log = time.time()
         error_list = ", ".join(error_sensors)
         log.log("error reading {0}".format(error_list), send_email = True)

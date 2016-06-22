@@ -18,12 +18,9 @@
 
     // The maximum allowable absolute change in temperature reading per second.
     // Readings exceeding this range will be ignored
+    // Initial readings and readings after an error will also be ignored
     // Set to 0 or less to disable the limit
     "max_change": 0.2, // 12 per minute
-
-    // Whether to ignore the first reading from a sensor after starting or an error
-    // This can prevent erroneous readings when the sensor has just powered up
-    "skip_initial_reading": true,
 
     // An email address to send certain log messages to
     // The UNIX mailx command is used, which must be installed and configured
