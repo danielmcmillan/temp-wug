@@ -3,7 +3,7 @@ import re
 
 # Regular expression for comments
 comment_re = re.compile(
-    r'(^)?[^\S\n]*/(?:\*(.*?)\*/[^\S\n]*|/[^\n]*)($)?',
+    r'^[^\S\n]*//[^\n]*$',
     re.DOTALL | re.MULTILINE
 )
 
@@ -20,6 +20,5 @@ def parse_json(filename):
             # single line comment
             content = content[:match.start()] + content[match.end():]
             match = comment_re.search(content)
-
         # Return json file
         return json.loads(content)
