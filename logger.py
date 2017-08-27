@@ -15,9 +15,9 @@ class LogLevel(Enum):
         - warning is for local logging only
         - critical is for email logging if configured
     """
-    INFO = 0
-    WARNING = 1
-    CRITICAL = 2
+    INFO = "INFO"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
 
 class Logger:
     """Class for logging to stdout and to email """
@@ -58,10 +58,11 @@ class Logger:
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
     def _send_email(self):
-        if len(self._email_messages == 0):
+        if len(self._email_messages) == 0:
             return
         
-        body = "<ul><li>{}</li></ul>".format("</li><li>".join(self._email_messages))
-        proc = subprocess.Popen(["mail", "-s", EMAIL_SUBJECT, "-r", socket.gethostname(), self._email_address], stdin = subprocess.PIPE, stdout=subprocess.PIPE)
+        body = "{}\n".format("\n".join(self._email_messages))
+        proc = subprocess.Popen(["mail", "-s", EMAIL_SUBJECT, "-r", socket.gethostname(),
+            self._email_address], stdin = subprocess.PIPE, stdout=subprocess.PIPE)
         proc.stdin.write(body.encode("utf-8"))
         proc.stdin.close()
