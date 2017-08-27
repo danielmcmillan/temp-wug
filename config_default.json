@@ -6,35 +6,34 @@
     "sensors":
     [
         {"wug_type": "tempf", "hw_type": "w1-temp", "device_id": "1234"},
-		{"wug_type": "insidetempf", "hw_type": "w1-temp", "device_id": "1234"}
+        {"wug_type": "insidetempf", "hw_type": "w1-temp", "device_id": "1234"}
     ],
-	
-	// The one wire device file to read data from, with $ used as placeholder for the device name
-    "w1_device_path": "",
-
+    
     // The time in seconds between each read of the sensors.
-	// Individual readings are averaged before uploading to wug.
+    // Individual readings are averaged before uploading to wug.
     "update_delay": 10,
 
     // The time in seconds between each upload of data
-    "upload_delay": 300, // 5 minutes
-	
-	// Weather Underground configuration
-	"weather_underground":
-	{
-		// The URL for providing data to
-		"wug_url": "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php",
-		// Details for the personal weather station
-		"pws_id": "ISOME123",
-		"pws_key": "abcd1234"
-	},
+    "upload_delay": 300,
+    
+    // Weather Underground configuration
+    "weather_underground":
+    {
+        // The URL for providing data to
+        "wug_url": "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php",
+        // Details for the personal weather station
+        "pws_id": "ISOME123",
+        "pws_key": "abcd1234",
+        // The minimum number of readings required for a sensor's values to be uploaded
+        "min_readings": 5
+    },
 
     // The maximum allowable absolute change in temperature reading per second.
-	// Specified in degrees Farenheit.
+    // Specified in degrees Farenheit.
     // Readings exceeding this range will be ignored.
     // Initial readings and readings after an error will also be ignored.
     // Set to 0 or less to disable the limit.
-    "max_change": 0.2, // 12 per minute
+    "max_change": 0.2,
 
     // An email address to send certain log messages to.
     // The UNIX mailx command is used, which must be installed and configured.
