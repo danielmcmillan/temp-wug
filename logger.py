@@ -1,47 +1,67 @@
 import subprocess
 import socket
 import datetime
+import time
+from enum import Enum
 
 EMAIL_SUBJECT = "Weather Underground Reader"
 
-# TODO: log levels, some only show in verbose, some only in local output, some emailed
-# TODO: record time of last email sent, accumulate errors in single email.
+# TODO: send email after _min_email_period, requires async
+
+class LogLevel(Enum):
+    """ Log levels for Logger.
+
+        - info is for verbose mode only
+        - warning is for local logging only
+        - critical is for email logging if configured
+    """
+    INFO = 0
+    WARNING = 1
+    CRITICAL = 2
 
 class Logger:
     """Class for logging to stdout and to email """
-    def __init__(self, email_address, min_email_period):
+    def __init__(self, verbose=False, email_address=None, min_email_period=None):
+        self._verbose = verbose
         self._email_address = email_address
         self._min_email_period = min_email_period
-    
-    def log(self, message, detail = "", send_email = False):
-        """ Logs the specified message
-            detail: optional extra details
-            send_email: whether to send out an email
-        """
-        timestamp = Logger.get_timestamp()
 
-        if (detail):
-            print("{0}: {1} - {2}".format(timestamp, message, detail))
-        else:
-            print("{0}: {1}".format(timestamp, message))
+        self._last_email = 0
+        self._email_messages = []
+    
+    def log(self, message, level=LogLevel.WARNING, detail = ""):
+        """ Logs the specified message.
+
+            level: the log level, see logger.LogLevel
+            detail: optional extra details
+        """
+        # Ignore INFO level if not verbose
+        if level == LogLevel.INFO and not self._verbose:
+            return
+
+        # Get the log text
+        timestamp = Logger._get_timestamp()
+        text = "{} {}: {}".format(timestamp, level.value, message)
+        if detail:
+            text += " - {}".format(detail)
         
-        if send_email and self._email_address:
-            subject = EMAIL_SUBJECT + ": " + message
-            if detail:
-                text = "Time: {0}\nOrigin: {3}\n{1}\n{2}".format(
-                    timestamp, message, detail, socket.gethostname())
-            else:
-                text = "Time: {0}\nOrigin: {2}\n{1}".format(
-                    timestamp, message, socket.gethostname())
-            self.email(subject, text)
+        # Log locally
+        print(text)
+        
+        # Add to email queue if critical
+        if level == LogLevel.CRITICAL and self._email_address:
+            self._email_messages.append(text)
+            self._send_email()
     
     @staticmethod
-    def get_timestamp():
+    def _get_timestamp():
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-    def email(self, subject, body):
-        if self._email_address is None:
+    def _send_email(self):
+        if len(self._email_messages == 0):
             return
-        proc = subprocess.Popen(["mail", "-s", subject, "-r", socket.gethostname(), self._email_address], stdin = subprocess.PIPE, stdout=subprocess.PIPE)
+        
+        body = "<ul><li>{}</li></ul>".format("</li><li>".join(self._email_messages))
+        proc = subprocess.Popen(["mail", "-s", EMAIL_SUBJECT, "-r", socket.gethostname(), self._email_address], stdin = subprocess.PIPE, stdout=subprocess.PIPE)
         proc.stdin.write(body.encode("utf-8"))
         proc.stdin.close()
