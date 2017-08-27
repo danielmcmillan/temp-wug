@@ -1,37 +1,46 @@
-// This is the sample configuration for the temperature reader
-// Configuration for the rrdtool server and its sensors is also required (see rrd_config_default.json)
+// This is the sample configuration for the Weather Underground temperature reader
 {
-    // The one wire device file to read data from, with $ used as placeholder for the device name
-    "device_path": "/sys/bus/w1/devices/$/w1_slave",
-
     // The sensors to provide data for and their corresponding device id
-    // The sensor string must be the id of a sensor defined in rrd_config, and all sensors
-    // must be in the same rrd file
+    // Available hw_types:
+    //  - "w1-temp" which requires "device_id" option
     "sensors":
-    {
-        "sensor-id": "device-id"
-    },
+    [
+        {"wug_type": "tempf", "hw_type": "w1-temp", "device_id": "1234"},
+		{"wug_type": "insidetempf", "hw_type": "w1-temp", "device_id": "1234"}
+    ],
+	
+	// The one wire device file to read data from, with $ used as placeholder for the device name
+    "w1_device_path": "",
 
-    // The time in seconds between each read of the sensors and write to the rrd
-    // Ideally this would match the step for the rrd database
-    "update_delay": "10",
+    // The time in seconds between each read of the sensors.
+	// Individual readings are averaged before uploading to wug.
+    "update_delay": 10,
+
+    // The time in seconds between each upload of data
+    "upload_delay": 300, // 5 minutes
+	
+	// Weather Underground configuration
+	"weather_underground":
+	{
+		// The URL for providing data to
+		"wug_url": "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php",
+		// Details for the personal weather station
+		"pws_id": "ISOME123",
+		"pws_key": "abcd1234"
+	},
 
     // The maximum allowable absolute change in temperature reading per second.
-    // Readings exceeding this range will be ignored
-    // Initial readings and readings after an error will also be ignored
-    // Set to 0 or less to disable the limit
+	// Specified in degrees Farenheit.
+    // Readings exceeding this range will be ignored.
+    // Initial readings and readings after an error will also be ignored.
+    // Set to 0 or less to disable the limit.
     "max_change": 0.2, // 12 per minute
 
-    // An email address to send certain log messages to
-    // The UNIX mailx command is used, which must be installed and configured
+    // An email address to send certain log messages to.
+    // The UNIX mailx command is used, which must be installed and configured.
     "log_email": null,
 
-    // The number of rrdtool connection attempts
-    "connection_attempts": 10,
-
-    // The delay in seconds between connection attempts
-    "connection_delay": 30,
-
-    // Whether to retry connection after a connection error
-    "retry_after_drop": true
+    // The minimum time to pass between subsequent emails.
+    // Errors will be accumulated into a single email within this time.
+    "min_email_period": 600
 }

@@ -1,5 +1,4 @@
 *.pyc
 *DS_STORE
 rrd/
-rrd_config.json
 config.json

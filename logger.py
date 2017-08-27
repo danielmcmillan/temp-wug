@@ -2,10 +2,16 @@ import subprocess
 import socket
 import datetime
 
+EMAIL_SUBJECT = "Weather Underground Reader"
+
+# TODO: log levels, some only show in verbose, some only in local output, some emailed
+# TODO: record time of last email sent, accumulate errors in single email.
+
 class Logger:
     """Class for logging to stdout and to email """
-    def __init__(self, email_address):
-        self.email_address = email_address
+    def __init__(self, email_address, min_email_period):
+        self._email_address = email_address
+        self._min_email_period = min_email_period
     
     def log(self, message, detail = "", send_email = False):
         """ Logs the specified message
@@ -19,8 +25,8 @@ class Logger:
         else:
             print("{0}: {1}".format(timestamp, message))
         
-        if send_email and self.email_address is not None:
-            subject = "TempReader: " + message
+        if send_email and self._email_address:
+            subject = EMAIL_SUBJECT + ": " + message
             if detail:
                 text = "Time: {0}\nOrigin: {3}\n{1}\n{2}".format(
                     timestamp, message, detail, socket.gethostname())
@@ -34,8 +40,8 @@ class Logger:
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
     def email(self, subject, body):
-        if self.email_address is None:
+        if self._email_address is None:
             return
-        proc = subprocess.Popen(["mail", "-s", subject, "-r", socket.gethostname(), self.email_address], stdin = subprocess.PIPE, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(["mail", "-s", subject, "-r", socket.gethostname(), self._email_address], stdin = subprocess.PIPE, stdout=subprocess.PIPE)
         proc.stdin.write(body.encode("utf-8"))
         proc.stdin.close()
